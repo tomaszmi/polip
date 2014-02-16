@@ -1,0 +1,29 @@
+#include <sstream>
+#include <stdexcept>
+#include "polip/json/parser.hpp"
+#include "grammar.hpp"
+
+namespace pjson = polip::json;
+
+pjson::Value pjson::load(const std::string& jsonDoc, Conformance level)
+{
+    /*
+        TODO:
+            handle conformance level
+            process errors
+     */
+    auto it = std::begin(jsonDoc);
+    ExtendedGrammar<std::string::const_iterator> parser;
+    pjson::Value value;
+    bool success = qi::phrase_parse(it, jsonDoc.end(), parser, ascii::space, value);
+    if(success && it == jsonDoc.end())
+    {
+        return value;
+    }
+    throw std::runtime_error("parsing error, still to parse: " + std::string(it, jsonDoc.end()));
+}
+
+void pjson::parse(const std::string& jsonDoc, DispatchTarget& builder)
+{
+    // TODO
+}
