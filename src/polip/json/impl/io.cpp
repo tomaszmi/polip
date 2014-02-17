@@ -1,5 +1,6 @@
 #include <ostream>
 #include "polip/json/io.hpp"
+#include "polip/json/value.hpp"
 
 namespace pjson = polip::json;
 
@@ -20,33 +21,37 @@ std::ostream& operator<<(std::ostream& os, const Indent& in)
 class OutStreamer : public boost::static_visitor<void>
 {
 public:
-    OutStreamer(std::ostream& os, unsigned level) : m_os(os), m_level(level)
+    enum class Mode { std, verbose };
+
+    OutStreamer(std::ostream& os, unsigned level, Mode mode = Mode::std)
+    : m_os(os), m_level(level), m_mode(mode)
     {
+        (void)m_mode;
     }
 
     void operator()(const pjson::Null& elem) const
     {
-        m_os << "null";
+        m_os << (m_mode == Mode::verbose ? "[NULL]" : "") << "null";
     }
 
     void operator()(bool elem) const
     {
-        m_os << (elem ? "true" : "false");
+        m_os << (m_mode == Mode::verbose ? "[BOOL]" : "") << (elem ? "true" : "false");
     }
 
     void operator()(int64_t elem) const
     {
-        m_os << elem;
+        m_os << (m_mode == Mode::verbose ? "[INT]" : "") << elem;
     }
 
     void operator()(double elem) const
     {
-        m_os << elem;
+        m_os << (m_mode == Mode::verbose ? "[DOUBLE]" : "") << elem;
     }
 
     void operator()(const std::string& elem) const
     {
-        m_os << '"' << elem << '"';
+        m_os << (m_mode == Mode::verbose ? "[STRING]" : "") << '"' << elem << '"';
     }
 
     void operator()(const pjson::Array& array) const
@@ -54,7 +59,7 @@ public:
         m_os << "[";
         for(auto const& item : array)
         {
-            boost::apply_visitor(OutStreamer(m_os, m_level+1), item);
+            boost::apply_visitor(OutStreamer(m_os, m_level+1, m_mode), item);
             m_os << ", ";
         }
         m_os << "]";
@@ -66,7 +71,7 @@ public:
         for(auto const& pair : object)
         {
             m_os << Indent{1, 4} << '"' << pair.first << "\": ";
-            boost::apply_visitor(OutStreamer(m_os, m_level+1), pair.second);
+            boost::apply_visitor(OutStreamer(m_os, m_level+1, m_mode), pair.second);
         }
         m_os << Indent{m_level, 4} << '}';
     }
@@ -74,6 +79,7 @@ public:
 private:
     std::ostream& m_os;
     unsigned m_level;
+    Mode m_mode;
 };
 
 } // anonymous namespace
@@ -93,5 +99,11 @@ std::ostream& pjson::operator<<(std::ostream& os, const Object& object)
 std::ostream& pjson::operator<<(std::ostream& os, const Value& value)
 {
     boost::apply_visitor(OutStreamer(os, 1), value);
+    return os;
+}
+
+std::ostream& pjson::operator<<(std::ostream& os, const VerboseValue& value)
+{
+    boost::apply_visitor(OutStreamer(os, 1, OutStreamer::Mode::verbose), value.value);
     return os;
 }

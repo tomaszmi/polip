@@ -1,10 +1,8 @@
 #ifndef INCLUDE_POLIP_JSON_VALUE_HPP
 #define INCLUDE_POLIP_JSON_VALUE_HPP
 
-#include <string>
-#include <utility>
-#include <vector>
 #include <boost/spirit/include/support_extended_variant.hpp>
+#include "polip/json/value_fwd.hpp"
 #include "polip/json/error.hpp"
 
 namespace polip
@@ -13,11 +11,6 @@ namespace json
 {
 
 struct Null {};
-class Value;
-using NameValue = std::pair<std::string, Value>;
-using Array = std::vector<Value>;
-using Object = std::vector<NameValue>;
-
 class Value : public boost::spirit::extended_variant<
                         Null,
                         bool,

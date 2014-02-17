@@ -10,6 +10,7 @@ namespace json
 
 struct error : std::exception {};
 
+struct parse_error : error {};
 struct not_null : error {};
 struct not_bool : error {};
 struct not_int : error {};

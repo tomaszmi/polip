@@ -1,6 +1,7 @@
 #include <sstream>
 #include <stdexcept>
 #include "polip/json/parser.hpp"
+#include "polip/json/error.hpp"
 #include "grammar.hpp"
 
 namespace pjson = polip::json;
@@ -20,7 +21,8 @@ pjson::Value pjson::load(const std::string& jsonDoc, Conformance level)
     {
         return value;
     }
-    throw std::runtime_error("parsing error, still to parse: " + std::string(it, jsonDoc.end()));
+    std::cout << "parsing error, still to parse: " + std::string(it, jsonDoc.end()) << std::endl;
+    throw parse_error{};
 }
 
 void pjson::parse(const std::string& jsonDoc, DispatchTarget& builder)
