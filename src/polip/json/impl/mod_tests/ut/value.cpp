@@ -138,3 +138,39 @@ TEST(json_value, test_getting_invalid_value)
     EXPECT_THROW(Value{ Null{} }.as<Object>(), not_object);
     EXPECT_THROW(Value{ true }.as<Null>(), not_null);
 }
+
+TEST(json_value, test_value_equal)
+{
+    Value v1{ Array{ int64_t{1}, Null{}, false } };
+    Value v2{ Array{ int64_t{2}, Null{}, false } };
+    Value v3{ Object{{ "x", Null{}}} };
+    Value v4{ Object{{ "y", Null{}}} };
+    Value v5{
+        Object{
+            { "y", Null{} },
+            { "y", Null{} }
+        }
+    };
+
+    EXPECT_TRUE(v1 == v1);
+    EXPECT_TRUE(v1 != v2);
+    EXPECT_TRUE(v3 == v3);
+    EXPECT_TRUE(v3 != v4);
+    EXPECT_TRUE(v4 != v5);
+
+    Value v6 { int64_t{1} };
+    Value v7 { double{1} };
+
+    EXPECT_TRUE(v6 != v7);
+
+    Value v8 { Object{} };
+    Value v9 { Object{} };
+    Value v10 {
+        Object {
+            { "", Object{} }
+        }
+    };
+
+    EXPECT_TRUE(v8 == v9);
+    EXPECT_TRUE(v9 != v10);
+}

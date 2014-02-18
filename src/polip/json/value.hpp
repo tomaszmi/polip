@@ -10,9 +10,7 @@ namespace polip
 namespace json
 {
 
-struct Null
-{
-};
+struct Null {};
 
 inline bool operator==(const Null&, const Null&)
 {

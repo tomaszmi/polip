@@ -13,7 +13,7 @@ pjson::Value pjson::load(const std::string& jsonDoc, Conformance level)
             handle conformance level
             process errors
      */
-    auto it = std::begin(jsonDoc);
+    auto it = jsonDoc.begin();
     ExtendedGrammar<std::string::const_iterator> parser;
     pjson::Value value;
     bool success =

@@ -92,3 +92,33 @@ pjson::Value::object_iterator pjson::Value::objectEnd()
 {
     return iterableElem<Object>(base_type::get(), What2Get::End);
 }
+
+namespace
+{
+
+struct ValueEqual : public boost::static_visitor<bool>
+{
+    template<typename T, typename U>
+    bool operator()(const T&, const U&) const
+    {
+        return false;
+    }
+
+    template<typename T>
+    bool operator()(const T& lhs, const T& rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
+} // anonymous namespace
+
+bool pjson::operator==(const Value& lhs, const Value& rhs)
+{
+    return boost::apply_visitor(ValueEqual(), lhs.get(), rhs.get());
+}
+
+bool pjson::operator!=(const Value& lhs, const Value& rhs)
+{
+    return !boost::apply_visitor(ValueEqual(), lhs.get(), rhs.get());
+}
