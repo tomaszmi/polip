@@ -16,6 +16,7 @@ using NameValue = std::pair<std::string, Value>;
 using Array = std::vector<Value>;
 using Object = std::vector<NameValue>;
 
-}} // namespace polip::json
+}
+}  // namespace polip::json
 
-#endif // INCLUDE_POLIP_JSON_VALUE_FWD_HPP
+#endif  // INCLUDE_POLIP_JSON_VALUE_FWD_HPP

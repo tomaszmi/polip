@@ -14,12 +14,15 @@ std::ostream& operator<<(std::ostream& os, const Value& value);
 
 struct VerboseValue
 {
-    VerboseValue(const Value& v) : value(v) {}
+    VerboseValue(const Value& v) : value(v)
+    {
+    }
     const Value& value;
 };
 
 std::ostream& operator<<(std::ostream& os, const VerboseValue& value);
 
-}} // namespace polip::json
+}
+}  // namespace polip::json
 
-#endif // INCLUDE_POLIP_JSON_IO_HPP
+#endif  // INCLUDE_POLIP_JSON_IO_HPP

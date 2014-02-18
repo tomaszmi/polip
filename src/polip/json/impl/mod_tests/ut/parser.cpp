@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include "polip/json/parser.hpp"
-#include "polip/json/io.hpp"
 
 using namespace polip::json;
 
@@ -95,6 +94,7 @@ TEST(json_parser, test_relaxed_load_string)
     EXPECT_EQ("ala", load(R"("ala")").as<std::string>());
     EXPECT_EQ("to be or not to be", load(R"("to be or not to be")").as<std::string>());
     EXPECT_EQ("space1 spaces2  tab\ttabs2\t\tend", load("\"space1 spaces2  tab\ttabs2\t\tend\"").as<std::string>());
+    EXPECT_EQ("", load("\"\"").as<std::string>());
     // TODO unicode testing cases
 }
 
@@ -129,5 +129,5 @@ TEST(json_parser, test_more)
     }
 }
 )";
-    std::cout << load(input) << std::endl;
+    //std::cout << load(input) << std::endl;
 }
