@@ -1,9 +1,9 @@
 #ifndef INCLUDE_POLIP_JSON_IMPL_GRAMMAR_HPP
 #define INCLUDE_POLIP_JSON_IMPL_GRAMMAR_HPP
 
+#include <functional>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/adapted/std_pair.hpp>
-#include <boost/bind.hpp>
 #include "polip/json/value.hpp"
 #include "polip/json/parser.hpp"
 
@@ -83,31 +83,32 @@ public:
         using qi::lexeme;
         using ascii::char_;
         using qi::lit;
+        using namespace std::placeholders;
 
         nullValue %= lit("null");
 
         array %=
-            char_('[')[boost::bind(&DispatchTarget::arrayBegin, &m_target)] >>
+            char_('[')[std::bind(&DispatchTarget::arrayBegin, &m_target)] >>
             -(value % ',') >>
-            char_(']')[boost::bind(&DispatchTarget::arrayEnd, &m_target)];
+            char_(']')[std::bind(&DispatchTarget::arrayEnd, &m_target)];
 
         object %=
             char_('{') >>
             -((stringValue
-                   [boost::bind(&DispatchTarget::objectBegin, &m_target, _1)] >>
+                   [std::bind(&DispatchTarget::objectBegin, &m_target, _1)] >>
                ':' >> value) %
               ',') >>
-            char_('}')[boost::bind(&DispatchTarget::objectEnd, &m_target)];
+            char_('}')[std::bind(&DispatchTarget::objectEnd, &m_target)];
 
         value %=
-            (nullValue[boost::bind(&DispatchTarget::nullValue, &m_target)] |
-             qi::bool_[boost::bind(&DispatchTarget::boolValue, &m_target, _1)] |
+            (nullValue[std::bind(&DispatchTarget::nullValue, &m_target)] |
+             qi::bool_[std::bind(&DispatchTarget::boolValue, &m_target, _1)] |
              int64Value
-                 [boost::bind(&DispatchTarget::integerValue, &m_target, _1)] |
+                 [std::bind(&DispatchTarget::integerValue, &m_target, _1)] |
              doubleValue
-                 [boost::bind(&DispatchTarget::doubleValue, &m_target, _1)] |
+                 [std::bind(&DispatchTarget::doubleValue, &m_target, _1)] |
              stringValue
-                 [boost::bind(&DispatchTarget::stringValue, &m_target, _1)] |
+                 [std::bind(&DispatchTarget::stringValue, &m_target, _1)] |
              array | object);
     }
 
@@ -152,6 +153,7 @@ struct ExtendedGrammar
     Rule<pjson::Object()> object;
     Rule<pjson::Value()> value;
 };
+
 }
 }  // namespace polip::json
 
