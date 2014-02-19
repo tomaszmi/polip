@@ -93,14 +93,14 @@ TEST(json_parser, test_relaxed_load_string)
 {
     EXPECT_EQ("ala", load(R"("ala")").as<std::string>());
     EXPECT_EQ("to be or not to be", load(R"("to be or not to be")").as<std::string>());
-    EXPECT_EQ("space1 spaces2  tab\ttabs2\t\tend", load("\"space1 spaces2  tab\ttabs2\t\tend\"").as<std::string>());
+    EXPECT_EQ("space1 spaces2  tab\ttabs2\t\tend", load("\"space1 spaces2  tab\\ttabs2\\t\\tend\"").as<std::string>());
     EXPECT_EQ("", load("\"\"").as<std::string>());
     // TODO unicode testing cases
 }
 
-TEST(json_parser, DISABLED_test_relaxed_load_string_embedded_quot)  // TODO ENABLE IT
+TEST(json_parser, test_relaxed_load_string_embedded_quot)
 {
-    EXPECT_EQ("a\"la", load("\"a\"la\"").as<std::string>());
+    EXPECT_EQ("a\"la", load("\"a\\\"la\"").as<std::string>());
 }
 
 TEST(json_parser, test_more)

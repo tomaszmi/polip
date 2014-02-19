@@ -21,8 +21,8 @@ pjson::Value pjson::load(const std::string& jsonDoc, Conformance level)
     if (success && it == jsonDoc.end()) {
         return value;
     }
-    std::cout << "parsing error, still to parse: " +
-                     std::string(it, jsonDoc.end()) << std::endl;
+    //std::cout << "parsing error, still to parse: " +
+    //                 std::string(it, jsonDoc.end()) << std::endl;
     throw parse_error{};
 }
 

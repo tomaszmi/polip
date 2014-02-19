@@ -2,7 +2,10 @@
 #define INCLUDE_POLIP_JSON_IMPL_GRAMMAR_HPP
 
 #include <functional>
+#include <string>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/phoenix_function.hpp>
+#include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/fusion/adapted/std_pair.hpp>
 #include "polip/json/value.hpp"
 #include "polip/json/parser.hpp"
@@ -52,25 +55,62 @@ struct DoubleGrammar : qi::grammar<Iterator, double(), ascii::space_type>
     qi::rule<Iterator, double(), ascii::space_type> value;
 };
 
+struct AddSpecChar
+{
+    template <typename Sig>
+    struct result
+    {
+        typedef void type;
+    };
+
+    void operator()(std::string& s, char ch) const
+    {
+        switch (ch)
+        {
+            case 'b':
+                s += '\b'; break;
+            case 'f':
+                s += '\f'; break;
+            case 'n':
+                s += '\n'; break;
+            case 'r':
+                s += '\r'; break;
+            case 't':
+                s += '\t'; break;
+            case '"':
+            case '\\':
+            case '/':
+                s += ch;
+                break;
+        }
+    }
+};
+
 template <typename Iterator>
 struct QuotedUnicodeStringGrammar : qi::grammar<Iterator, std::string()>
 {
     QuotedUnicodeStringGrammar()
         : QuotedUnicodeStringGrammar::base_type(value, "json_string")
     {
-        using qi::lexeme;
         using qi::char_;
+        using qi::_val;
+
+        boost::phoenix::function<AddSpecChar> addSpecChar;
 
         /*
-            NOTE: TODO:
-                1) support for embedded quot
-                2) support for unicode chars
+            NOTE: TODO: support for unicode chars
+            Add support for \v special char (extended json)
         */
-
-        value %= lexeme['"' >> *(char_ - '"') >> '"'];
+        escaped %= '\\' >> char_("\"\\/bfnrt")[addSpecChar(qi::_r1, qi::_1)];
+        unescaped %= char_("\x20-\x21\x23-\x5b\x5d-\x7e");
+        value %= '"'
+            >> *( escaped(_val) | unescaped )
+            >> '"';
     }
 
     qi::rule<Iterator, std::string()> value;
+    qi::rule<Iterator, std::string()> unescaped;
+    qi::rule<Iterator, void(std::string&)> escaped;
 };
 
 template <typename Iterator>
@@ -83,7 +123,7 @@ public:
         using qi::lexeme;
         using ascii::char_;
         using qi::lit;
-        using namespace std::placeholders;
+        namespace plc = std::placeholders;
 
         nullValue %= lit("null");
 
@@ -94,21 +134,15 @@ public:
 
         object %=
             char_('{') >>
-            -((stringValue
-                   [std::bind(&DispatchTarget::objectBegin, &m_target, _1)] >>
-               ':' >> value) %
-              ',') >>
+            -((stringValue[std::bind(&DispatchTarget::objectBegin, &m_target, plc::_1)] >> ':' >> value) % ',') >>
             char_('}')[std::bind(&DispatchTarget::objectEnd, &m_target)];
 
         value %=
             (nullValue[std::bind(&DispatchTarget::nullValue, &m_target)] |
-             qi::bool_[std::bind(&DispatchTarget::boolValue, &m_target, _1)] |
-             int64Value
-                 [std::bind(&DispatchTarget::integerValue, &m_target, _1)] |
-             doubleValue
-                 [std::bind(&DispatchTarget::doubleValue, &m_target, _1)] |
-             stringValue
-                 [std::bind(&DispatchTarget::stringValue, &m_target, _1)] |
+             qi::bool_[std::bind(&DispatchTarget::boolValue, &m_target, plc::_1)] |
+             int64Value[std::bind(&DispatchTarget::integerValue, &m_target, plc::_1)] |
+             doubleValue[std::bind(&DispatchTarget::doubleValue, &m_target, plc::_1)] |
+             stringValue[std::bind(&DispatchTarget::stringValue, &m_target, plc::_1)] |
              array | object);
     }
 
