@@ -6,12 +6,15 @@
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_function.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
+#include <boost/spirit/include/phoenix_object.hpp>
+#include <boost/spirit/include/support_info.hpp>
 #include <boost/fusion/adapted/std_pair.hpp>
 #include "polip/json/value.hpp"
 #include "polip/json/parser.hpp"
 
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
+namespace phx = boost::phoenix;
 namespace pjson = polip::json;
 
 namespace polip
@@ -22,7 +25,7 @@ namespace json
 template <typename Iterator>
 struct DecInt64Grammar : qi::grammar<Iterator, int64_t(), ascii::space_type>
 {
-    DecInt64Grammar() : DecInt64Grammar::base_type(value, "json_int")
+    explicit DecInt64Grammar(const std::string& name = "int") : DecInt64Grammar::base_type(value, name)
     {
         using qi::lexeme;
         using qi::lit;
@@ -43,7 +46,7 @@ struct DecInt64Grammar : qi::grammar<Iterator, int64_t(), ascii::space_type>
 template <typename Iterator>
 struct DoubleGrammar : qi::grammar<Iterator, double(), ascii::space_type>
 {
-    DoubleGrammar() : DoubleGrammar::base_type(value, "json_double")
+    explicit DoubleGrammar(const std::string& name = "double") : DoubleGrammar::base_type(value, name)
     {
         using qi::lexeme;
         using qi::lit;
@@ -89,13 +92,13 @@ struct AddSpecChar
 template <typename Iterator>
 struct QuotedUnicodeStringGrammar : qi::grammar<Iterator, std::string()>
 {
-    QuotedUnicodeStringGrammar()
-        : QuotedUnicodeStringGrammar::base_type(value, "json_string")
+    explicit QuotedUnicodeStringGrammar(const std::string& name = "string")
+        : QuotedUnicodeStringGrammar::base_type(value, name)
     {
         using qi::char_;
         using qi::_val;
 
-        boost::phoenix::function<AddSpecChar> addSpecChar;
+        phx::function<AddSpecChar> addSpecChar;
 
         /*
             NOTE: TODO: support for unicode chars
@@ -113,79 +116,135 @@ struct QuotedUnicodeStringGrammar : qi::grammar<Iterator, std::string()>
     qi::rule<Iterator, void(std::string&)> escaped;
 };
 
+template<typename Iterator>
+struct Rules
+{
+    Rules()
+        : nullText(qi::lit("null"), "null"),
+          arrayBegin(qi::lit("["), "["),
+          arrayEnd(qi::lit("]"), "]"),
+          objectBegin(qi::lit("{"), "{"),
+          objectEnd(qi::lit("}"), "}"),
+          comma(qi::lit(","), ","),
+          colon(qi::lit(":"), ":"),
+          null(std::string("null")),
+          int64(std::string("int")),
+          _double(std::string("double")),
+          string(std::string("string")),
+          member(std::string("name_value")),
+          array(std::string("array")),
+          object(std::string("object")),
+          value(std::string("value"))
+    {
+    }
+
+    template<typename Attr>
+    using Rule = qi::rule<Iterator, Attr, ascii::space_type>;
+
+    qi::rule<Iterator> nullText, arrayBegin, arrayEnd, objectBegin, objectEnd,
+        comma, colon;
+
+    Rule<pjson::Null()> null;
+    DecInt64Grammar<Iterator> int64;
+    DoubleGrammar<Iterator> _double;
+    QuotedUnicodeStringGrammar<Iterator> string;
+    Rule<pjson::NameValue()> member;
+    Rule<pjson::Array()> array;
+    Rule<pjson::Object()> object;
+    Rule<pjson::Value()> value;
+};
+
 template <typename Iterator>
-class DispatchingParser : public qi::grammar<Iterator, ascii::space_type>
+class DispatchingExtendedGrammar : public qi::grammar<Iterator, ascii::space_type>
 {
 public:
-    DispatchingParser(DispatchTarget& target)
-        : DispatchingParser::base_type(value, "json"), m_target(target)
+    DispatchingExtendedGrammar(DispatchTarget& target)
+        : DispatchingExtendedGrammar::base_type(json.value, "json"), m_target(target)
     {
-        using qi::lexeme;
         using ascii::char_;
         using qi::lit;
         namespace plc = std::placeholders;
 
-        nullValue %= lit("null");
+        json.null %= json.nullText;
 
-        array %=
-            char_('[')[std::bind(&DispatchTarget::arrayBegin, &m_target)] >>
-            -(value % ',') >>
-            char_(']')[std::bind(&DispatchTarget::arrayEnd, &m_target)];
+        json.array %=
+            json.arrayBegin[std::bind(&DispatchTarget::arrayBegin, &m_target)] >>
+            -(json.value % json.coma) >>
+            json.arrayEnd[std::bind(&DispatchTarget::arrayEnd, &m_target)];
 
-        object %=
-            char_('{') >>
-            -((stringValue[std::bind(&DispatchTarget::objectBegin, &m_target, plc::_1)] >> ':' >> value) % ',') >>
-            char_('}')[std::bind(&DispatchTarget::objectEnd, &m_target)];
+        json.object %=
+            json.objectBegin >>
+            -((json.string[std::bind(&DispatchTarget::objectBegin, &m_target, plc::_1)] >> json.colon >> json.value) % json.coma) >>
+            json.objectEnd[std::bind(&DispatchTarget::objectEnd, &m_target)];
 
-        value %=
-            (nullValue[std::bind(&DispatchTarget::nullValue, &m_target)] |
+        json.value %=
+            (json.null[std::bind(&DispatchTarget::nullValue, &m_target)] |
              qi::bool_[std::bind(&DispatchTarget::boolValue, &m_target, plc::_1)] |
-             int64Value[std::bind(&DispatchTarget::integerValue, &m_target, plc::_1)] |
-             doubleValue[std::bind(&DispatchTarget::doubleValue, &m_target, plc::_1)] |
-             stringValue[std::bind(&DispatchTarget::stringValue, &m_target, plc::_1)] |
-             array | object);
+             json.int64[std::bind(&DispatchTarget::integerValue, &m_target, plc::_1)] |
+             json._double[std::bind(&DispatchTarget::doubleValue, &m_target, plc::_1)] |
+             json.string[std::bind(&DispatchTarget::stringValue, &m_target, plc::_1)] |
+             json.array | json.object);
     }
 
 private:
     DispatchTarget& m_target;
-    qi::rule<Iterator, ascii::space_type> nullValue;
-    DecInt64Grammar<Iterator> int64Value;
-    DoubleGrammar<Iterator> doubleValue;
-    QuotedUnicodeStringGrammar<Iterator> stringValue;
-    qi::rule<Iterator, ascii::space_type> value;
-    qi::rule<Iterator, ascii::space_type> array;
-    qi::rule<Iterator, ascii::space_type> object;
+    Rules<Iterator> json;
+};
+
+struct Diagnostics
+{
+};
+
+template<typename Iterator>
+struct ErrorHandler
+{
+    struct Error : public std::exception
+    {
+        Error(Iterator begin_, Iterator end_, Iterator where_)
+        : begin(begin_), end(end_), where(where_) {}
+
+        Iterator begin;
+        Iterator end;
+        Iterator where;
+    };
+
+    struct Handle
+    {
+        struct result { typedef void type; };
+
+        void operator()(const Diagnostics& diagnostics, Iterator begin, Iterator end, Iterator where, const boost::spirit::info& info) const
+        {
+            //const boost::spirit::utf8_string& tag(info.tag);
+            //std::cout << tag.c_str() << std::endl;
+            //std::cout << info << std::endl;
+            throw Error{begin, end, where};
+        }
+    };
+
+    phx::function<Handle> handle;
 };
 
 template <typename Iterator>
 struct ExtendedGrammar
     : public qi::grammar<Iterator, pjson::Value(), ascii::space_type>
 {
-    ExtendedGrammar() : ExtendedGrammar::base_type(value, "json")
+    ExtendedGrammar() : ExtendedGrammar::base_type(json.value, "json")
     {
-        using qi::lexeme;
-        using ascii::char_;
-        using qi::lit;
+        json.null %= json.nullText >> qi::attr_type()(pjson::Null());
+        json.array %= json.arrayBegin > -(json.value % json.comma) > json.arrayEnd;
+        json.member %= json.string >> json.colon >> json.value;
+        json.object %= json.objectBegin >> -(json.member % json.comma) >> json.objectEnd;
+        json.value %= (json.null | qi::bool_ | json.int64 | json._double | json.string | json.array | json.object);
 
-        nullValue %= lit("null") >> qi::attr_type()(pjson::Null());
-        array %= '[' >> -(value % ',') >> ']';
-        member %= stringValue >> ':' >> value;
-        object %= '{' >> -(member % ',') >> '}';
-        value %= (nullValue | qi::bool_ | int64Value | doubleValue |
-                  stringValue | array | object);
+        using namespace boost::spirit::qi::labels;
+        qi::on_error<qi::fail>(json.array, failure.handle(phx::ref(diags), _1, _2, _3, _4));
     }
 
-    template <typename Attr>
-    using Rule = qi::rule<Iterator, Attr, ascii::space_type>;
+    using Error = typename ErrorHandler<Iterator>::Error;
 
-    Rule<pjson::Null()> nullValue;
-    DecInt64Grammar<Iterator> int64Value;
-    DoubleGrammar<Iterator> doubleValue;
-    QuotedUnicodeStringGrammar<Iterator> stringValue;
-    Rule<pjson::NameValue()> member;
-    Rule<pjson::Array()> array;
-    Rule<pjson::Object()> object;
-    Rule<pjson::Value()> value;
+    Rules<Iterator> json;
+    ErrorHandler<Iterator> failure;
+    Diagnostics diags;
 };
 
 }

@@ -6,7 +6,7 @@ using namespace polip::json;
 namespace
 {
 
-std::pair<bool, std::string> parse(const std::string& input)
+std::pair<bool, std::string> stringParse(const std::string& input)
 {
     auto it = input.begin();
     std::string result;
@@ -17,24 +17,31 @@ std::pair<bool, std::string> parse(const std::string& input)
     );
 }
 
-decltype(parse("")) success(const char* result = "")
+decltype(stringParse("")) success(const char* result = "")
 {
     return std::make_pair(true, result);
 }
 
-decltype(parse("")) failure(const char* remaining = "")
+decltype(stringParse("")) failure(const char* remaining = "")
 {
     return std::make_pair(false, remaining);
+}
+
+void jsonExtGrammarParse(const std::string& input)
+{
+    auto it = input.begin();
+    pjson::Value value;
+    qi::phrase_parse(it, input.end(), ExtendedGrammar<std::string::const_iterator>(), ascii::space, value);
 }
 
 } // anonymous namespace
 
 TEST(json_string_grammar, test_basic_strings)
 {
-    EXPECT_EQ(success(), parse("\"\""));
-    EXPECT_EQ(success(" "), parse("\" \""));
-    EXPECT_EQ(success("aAzZ190^$'"), parse("\"aAzZ190^$'\""));
-    EXPECT_EQ(success("simple"), parse("\"simple\""));
+    EXPECT_EQ(success(), stringParse("\"\""));
+    EXPECT_EQ(success(" "), stringParse("\" \""));
+    EXPECT_EQ(success("aAzZ190^$'"), stringParse("\"aAzZ190^$'\""));
+    EXPECT_EQ(success("simple"), stringParse("\"simple\""));
 }
 
 TEST(json_string_grammar, test_single_valid_chars)
@@ -45,31 +52,49 @@ TEST(json_string_grammar, test_single_valid_chars)
         {
             std::stringstream ss;
             ss << '"' << static_cast<char>(i) << '"';
-            EXPECT_EQ(success(std::string(1, static_cast<char>(i)).c_str()), parse(ss.str()));
+            EXPECT_EQ(success(std::string(1, static_cast<char>(i)).c_str()), stringParse(ss.str()));
         }
     }
 }
 
 TEST(json_string_grammar, test_special_chars)
 {
-    EXPECT_EQ(success("\""), parse( R"("\"")" ));
-    EXPECT_EQ(success("\b"), parse( R"("\b")" ));
-    EXPECT_EQ(success("\f"), parse( R"("\f")" ));
-    EXPECT_EQ(success("\n"), parse( R"("\n")" ));
-    EXPECT_EQ(success("\r"), parse( R"("\r")" ));
-    EXPECT_EQ(success("\t"), parse( R"("\t")" ));
-    EXPECT_EQ(success("\\"), parse( R"("\\")" ));
-    EXPECT_EQ(success("\\\\"), parse( R"("\\\\")" ));
-    EXPECT_EQ(success("/"),  parse( R"("\/")" ));
+    EXPECT_EQ(success("\""), stringParse( R"("\"")" ));
+    EXPECT_EQ(success("\b"), stringParse( R"("\b")" ));
+    EXPECT_EQ(success("\f"), stringParse( R"("\f")" ));
+    EXPECT_EQ(success("\n"), stringParse( R"("\n")" ));
+    EXPECT_EQ(success("\r"), stringParse( R"("\r")" ));
+    EXPECT_EQ(success("\t"), stringParse( R"("\t")" ));
+    EXPECT_EQ(success("\\"), stringParse( R"("\\")" ));
+    EXPECT_EQ(success("\\\\"), stringParse( R"("\\\\")" ));
+    EXPECT_EQ(success("/"),  stringParse( R"("\/")" ));
 
-    EXPECT_EQ(success("embed\"quot"), parse("\"embed\\\"quot\""));
-    EXPECT_EQ(success("embed\nquot"), parse("\"embed\\nquot\""));
+    EXPECT_EQ(success("embed\"quot"), stringParse("\"embed\\\"quot\""));
+    EXPECT_EQ(success("embed\nquot"), stringParse("\"embed\\nquot\""));
 }
 
 TEST(json_string_grammar, test_negative_cases)
 {
-    EXPECT_EQ(failure(), parse(""));
-    EXPECT_EQ(failure("\"unclosed quot"), parse("\"unclosed quot"));
-    EXPECT_EQ(failure("unopened quot\""), parse("unopened quot\""));
-    //EXPECT_EQ(failure("\""), parse("\" \""));
+    EXPECT_EQ(failure(), stringParse(""));
+    EXPECT_EQ(failure("\"unclosed quot"), stringParse("\"unclosed quot"));
+    EXPECT_EQ(failure("unopened quot\""), stringParse("unopened quot\""));
+    //EXPECT_EQ(failure("\""), stringParse("\" \""));
+}
+
+TEST(json_string_grammar, test_negative_cases2)
+{
+}
+
+TEST(json_string_grammar, test_extended_grammar_parser)
+{
+    std::string input = "[ null, false, ]";
+    try
+    {
+        jsonExtGrammarParse(input);
+    }
+    catch(ExtendedGrammar<std::string::const_iterator>::Error& e)
+    {
+        std::cout << std::string(e.begin, e.where) << std::endl;
+        std::cout << std::string(e.begin, e.end) << std::endl;
+    }
 }
