@@ -5,6 +5,8 @@
 
 using namespace polip::json;
 
+using str_parse_error = parse_error<std::string::const_iterator>;
+
 TEST(json_parser, test_relaxed_load_empty_array)
 {
     {
@@ -50,11 +52,11 @@ TEST(json_parser, test_relaxed_load_int)
 
 TEST(json_parser, test_relaxed_load_invalid_int)
 {
-    EXPECT_THROW(load("+0"), parse_error);
-    EXPECT_THROW(load("01"), parse_error);
-    EXPECT_THROW(load("+1"), parse_error);
-    EXPECT_THROW(load("+01"), parse_error);
-    EXPECT_THROW(load("-01"), parse_error);
+    EXPECT_THROW(load("+0"), str_parse_error);
+    EXPECT_THROW(load("01"), str_parse_error);
+    EXPECT_THROW(load("+1"), str_parse_error);
+    EXPECT_THROW(load("+01"), str_parse_error);
+    EXPECT_THROW(load("-01"), str_parse_error);
 }
 
 TEST(json_parser, test_relaxed_load_double)
@@ -73,20 +75,20 @@ TEST(json_parser, test_relaxed_load_double)
 
 TEST(json_parser, test_relaxed_load_invalid_double)
 {
-    EXPECT_THROW(load("01.2"), parse_error);
-    EXPECT_THROW(load("01e2"), parse_error);
-    EXPECT_THROW(load("+1e2"), parse_error);
-    EXPECT_THROW(load("1a2"), parse_error);
-    EXPECT_THROW(load("+1.2"), parse_error);
-    EXPECT_THROW(load("e1"), parse_error);
+    EXPECT_THROW(load("01.2"), str_parse_error);
+    EXPECT_THROW(load("01e2"), str_parse_error);
+    EXPECT_THROW(load("+1e2"), str_parse_error);
+    EXPECT_THROW(load("1a2"), str_parse_error);
+    EXPECT_THROW(load("+1.2"), str_parse_error);
+    EXPECT_THROW(load("e1"), str_parse_error);
 }
 
 TEST(json_parser, test_relaxed_load_unknown_kwd)
 {
-    EXPECT_THROW(load("Null"), parse_error);
-    EXPECT_THROW(load("False"), parse_error);
-    EXPECT_THROW(load("True"), parse_error);
-    EXPECT_THROW(load("whatever"), parse_error);
+    EXPECT_THROW(load("Null"), str_parse_error);
+    EXPECT_THROW(load("False"), str_parse_error);
+    EXPECT_THROW(load("True"), str_parse_error);
+    EXPECT_THROW(load("whatever"), str_parse_error);
 }
 
 TEST(json_parser, test_relaxed_load_string)

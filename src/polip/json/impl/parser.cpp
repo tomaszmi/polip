@@ -23,7 +23,9 @@ pjson::Value pjson::load(const std::string& jsonDoc, Conformance level)
     }
     //std::cout << "parsing error, still to parse: " +
     //                 std::string(it, jsonDoc.end()) << std::endl;
-    throw parse_error{};
+
+    //assert(false && "It is expected that the underlying parser throws on error");
+    throw parse_error<std::string::const_iterator>{ DiagError::Other, jsonDoc.end(), jsonDoc.end(), jsonDoc.end(),"" };
 }
 
 void pjson::parse(const std::string& jsonDoc, DispatchTarget& builder)

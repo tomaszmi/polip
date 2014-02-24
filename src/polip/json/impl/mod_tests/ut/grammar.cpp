@@ -1,3 +1,5 @@
+
+#include <boost/spirit/include/support_info.hpp>
 #include <gtest/gtest.h>
 #include "polip/json/impl/grammar.hpp"
 
@@ -22,17 +24,50 @@ decltype(stringParse("")) success(const char* result = "")
     return std::make_pair(true, result);
 }
 
-decltype(stringParse("")) failure(const char* remaining = "")
+/*decltype(stringParse("")) failure(const char* remaining = "")
 {
     return std::make_pair(false, remaining);
+}*/
+
+struct UnexpectedSuccess {};
+using ParseError = ExtendedGrammar<std::string::const_iterator>::Error;
+
+ParseError expectStringParsingError(const std::string& input)
+{
+    try
+    {
+        auto it = input.begin();
+        std::string result;
+        qi::phrase_parse(it, input.end(), QuotedUnicodeStringGrammar<std::string::const_iterator>(), ascii::space, result);
+        std::cout << "ala ma kota" << std::endl;
+    }
+    catch(ExtendedGrammar<std::string::const_iterator>::Error& e)
+    {
+        return e;
+    }
+    throw UnexpectedSuccess {};
 }
 
+/*
 void jsonExtGrammarParse(const std::string& input)
 {
     auto it = input.begin();
     pjson::Value value;
     qi::phrase_parse(it, input.end(), ExtendedGrammar<std::string::const_iterator>(), ascii::space, value);
 }
+
+ParseError expectError(const std::string& input)
+{
+    try
+    {
+        jsonExtGrammarParse(input);
+    }
+    catch(ExtendedGrammar<std::string::const_iterator>::Error& e)
+    {
+        return e;
+    }
+    throw UnexpectedSuccess {};
+}*/
 
 } // anonymous namespace
 
@@ -57,7 +92,7 @@ TEST(json_string_grammar, test_single_valid_chars)
     }
 }
 
-TEST(json_string_grammar, test_special_chars)
+TEST(json_string_grammar, test_valid_special_chars)
 {
     EXPECT_EQ(success("\""), stringParse( R"("\"")" ));
     EXPECT_EQ(success("\b"), stringParse( R"("\b")" ));
@@ -71,30 +106,57 @@ TEST(json_string_grammar, test_special_chars)
 
     EXPECT_EQ(success("embed\"quot"), stringParse("\"embed\\\"quot\""));
     EXPECT_EQ(success("embed\nquot"), stringParse("\"embed\\nquot\""));
+    EXPECT_EQ(success(" "), stringParse("\" \""));
 }
 
-TEST(json_string_grammar, test_negative_cases)
+TEST(json_string_grammar, test_invalid_special_chars)
 {
-    EXPECT_EQ(failure(), stringParse(""));
-    EXPECT_EQ(failure("\"unclosed quot"), stringParse("\"unclosed quot"));
-    EXPECT_EQ(failure("unopened quot\""), stringParse("unopened quot\""));
-    //EXPECT_EQ(failure("\""), stringParse("\" \""));
+    const std::string input = "\"x\\yz\"";
+    ParseError e = expectStringParsingError(input);
+    EXPECT_EQ(DiagError::ExpectedQuot, e.issue);
+    EXPECT_EQ(input.begin() + 3, e.where);
 }
 
-TEST(json_string_grammar, test_negative_cases2)
+TEST(json_string_grammar, test_empty_string)
 {
+    const std::string input = "";
+    auto it = input.begin();
+    EXPECT_FALSE(qi::phrase_parse(it, input.end(), QuotedUnicodeStringGrammar<std::string::const_iterator>(), ascii::space));
+    EXPECT_EQ(input.begin(), it);
+}
+
+TEST(json_string_grammar, test_not_a_quot_at_the_beginning)
+{
+    const std::string input = "  f";
+    auto it = input.begin();
+    EXPECT_FALSE(qi::phrase_parse(it, input.end(), QuotedUnicodeStringGrammar<std::string::const_iterator>(), ascii::space));
+    EXPECT_EQ(input.begin()+2, it);
+}
+
+TEST(json_string_grammar, test_unclosed_quot)
+{
+    const std::string input = "\"most poople finish at z";
+    ParseError e = expectStringParsingError(input);
+    EXPECT_EQ(DiagError::ExpectedQuot, e.issue);
+    EXPECT_EQ(input.begin() + input.size(), e.where);
+}
+
+TEST(json_string_grammar, test_unopened_quot)
+{
+    const std::string input = "but not me\"";
+    auto it = input.begin();
+    EXPECT_FALSE(qi::phrase_parse(it, input.end(), QuotedUnicodeStringGrammar<std::string::const_iterator>(), ascii::space));
+    EXPECT_EQ(input.begin(), it);
 }
 
 TEST(json_string_grammar, test_extended_grammar_parser)
 {
-    std::string input = "[ null, false, ]";
-    try
-    {
-        jsonExtGrammarParse(input);
-    }
-    catch(ExtendedGrammar<std::string::const_iterator>::Error& e)
-    {
-        std::cout << std::string(e.begin, e.where) << std::endl;
-        std::cout << std::string(e.begin, e.end) << std::endl;
-    }
+    /*{
+        const std::string input = "[ null, false, ]";
+        ParseError e = expectError(input);
+        EXPECT_EQ(DiagError::ExpectedQuot, e.issue);
+        EXPECT_EQ(input.begin(), e.begin);
+        EXPECT_EQ(input.end(), e.end);
+        EXPECT_EQ(input.begin() + std::strlen("[ null, false"), e.where);
+    }*/
 }
